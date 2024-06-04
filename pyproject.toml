@@ -1,0 +1,55 @@
+[project]
+name = "llm-code-assist"
+version = "0.1.0"
+description = "Research on LLM-based code-assist framework"
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["optimization", "llm", "AI programming", "tools"]
+authors = [
+    {name="Matthew Russo (MIT DSG)", email="mdrusso@mit.edu"},
+    {name="Amadou Ngom (MIT DSG)", email="ngom@mit.edu"},
+    {name="Tim Kraska (MIT DSG)", email="kraska@mit.edu"},
+]
+dependencies = [
+    "datasets>=2.19.1",
+    "jedi>=0.19.1",
+    "tenacity>=8.3.0",    
+    "anthropic>=0.28.0",
+    "openai>=1.30.5",    
+    "tiktoken>=0.7.0",
+    "beautifulsoup4>=4.12.3",
+    "chardet>=5.2.0",
+    "ghapi>=1.0.5",
+    "GitPython>=3.1.43",
+    "python-dotenv>=1.0.1",
+    "requests>=2.32.3",
+    "rich>=13.7.1",
+    "transformers>=4.34.0",
+    "tqdm>=4.66.4"
+]
+classifiers=[
+    "Development Status :: 4 - Beta",  # Change as appropriate
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",  # Change as appropriate
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",  # Specify versions you support
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.rst", "*.md"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+homepage = "https://github.com/mdr223/llm-code-assist"
+repository = "https://github.com/mdr223/llm-code-assist"
