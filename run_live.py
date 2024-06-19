@@ -13,15 +13,12 @@ from ghapi.all import GhApi
 import os
 import re
 import time
+import torch
+from git import Repo
+from pathlib import Path
 from datetime import datetime
 from tqdm.auto import tqdm
 from make_datasets.utils import ContextManager, string_to_bool, extract_diff, extract_minimal_patch
-from make_datasets.bm25_retrieval import (
-    make_index,
-    clone_repo,
-    search,
-    DOCUMENT_ENCODING_FUNCTIONS,
-)
 from make_datasets.create_instance import (
     PROMPT_FUNCTIONS,
     TOKENIZER_FUNCS,
@@ -29,6 +26,7 @@ from make_datasets.create_instance import (
     ingest_files,
 )
 from run_api import call_chat, call_anthropic
+from sentence_transformers import SentenceTransformer
 import logging
 from argparse import ArgumentParser
 
@@ -39,6 +37,27 @@ logger = logging.getLogger(__name__)
 
 # DEFINITIONS
 INSTANCE_RE = re.compile('(.*)__(.*)-(.*)', re.DOTALL)
+
+
+def clone_repo(repo, root_dir, token):
+    """
+    Clones a GitHub repository to a specified directory.
+
+    Args:
+        repo (str): The GitHub repository to clone.
+        root_dir (str): The root directory to clone the repository to.
+        token (str): The GitHub personal access token to use for authentication.
+
+    Returns:
+        Path: The path to the cloned repository directory.
+    """
+    repo_dir = Path(root_dir, f"repo__{repo.replace('/', '__')}")
+
+    if not repo_dir.exists():
+        repo_url = f"https://{token}@github.com/{repo}.git"
+        logger.info(f"Cloning {repo} {os.getpid()}")
+        Repo.clone_from(repo_url, repo_dir)
+    return repo_dir
 
 
 def get_problem_statement(owner, repo, issue_num, ghapi, include_comments=False):
@@ -63,6 +82,46 @@ def get_readme_files(repo_path):
     return [Path(file).relative_to(repo_path).as_posix() for file in files]
 
 
+def retrieve_top_k_files(issue_context: str, k: int):
+    # load embedding model
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    # compute embedding for the issue context
+    query_embedding = model.encode(issue_context)
+
+    # compute embedding for each file in codebase
+    all_filepaths, all_file_data = [], []
+    for root, _, files in os.walk('.'):
+        for file in files:
+            if any([file.endswith(suffix) for suffix in ['.py', '.md', '.sql', '.txt']]): 
+                filepath = os.path.join(root, file)
+                all_filepaths.append(filepath)
+                try:
+                    with open(filepath, 'r') as f:
+                        data = f.read()
+                        all_file_data.append(data)
+                except:
+                    import pdb
+                    pdb.set_trace()
+
+    # compute file embeddings
+    file_embeddings = model.encode(all_file_data)
+
+    # compute similarity between query and file embeddings
+    similarities = model.similarity(query_embedding, file_embeddings)
+
+    # get indices of top-k similar files
+    top_k_indices = set(torch.topk(similarities.flatten(), k=k).indices.tolist())
+
+    # filter for top files' data and return
+    top_k_files = [
+        {"docid": fp, "file_contents": file_data}
+        for idx, (fp, file_data) in enumerate(zip(all_filepaths, all_file_data))
+        if idx in top_k_indices
+    ]
+
+    return top_k_files
+
 def make_instance(
     owner,
     repo,
@@ -70,7 +129,6 @@ def make_instance(
     commit,
     root_dir,
     token,
-    document_encoding_func,
     python,
     instance_id,
     tokenizer,
@@ -89,7 +147,6 @@ def make_instance(
         commit (str): The commit hash to use.
         root_dir (str): The root directory to clone the repository to.
         token (str): The GitHub token to use for authentication.
-        document_encoding_func (function): The function to use for encoding documents.
         python (str): The path to the Python executable.
         instance_id (int): The ID of the instance.
         tokenizer (str): The name of the tokenizer to use.
@@ -101,35 +158,23 @@ def make_instance(
     Returns:
         dict: The instance.
     """
-    thread_id = 0
     instance = {"instance_id": instance_id, "problem_statement": query}
     logger.info(f"Cloning repo {owner}/{repo}")
-    repo_dir = clone_repo(f"{owner}/{repo}", root_dir, token, False, thread_id)
+    repo_dir = clone_repo(f"{owner}/{repo}", root_dir, token)
     if commit is None:
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=repo_dir
         ).decode("utf-8").strip()
-    logger.info(f"Buidling BM25 retrieval index for {owner}/{repo}@{commit}")
-    index_dir = make_index(
-        repo_dir,
-        root_dir,
-        commit,
-        document_encoding_func,
-        python,
-        thread_id,
-        instance_id,
-    )
-    results = search(instance, index_dir)
-    hits = results["hits"]
-    logger.info(f"Retrieved {len(hits)} documents")
+
     with ContextManager(repo_dir, commit) as cm:
         if include_readmes:
             readmes = get_readme_files(cm.repo_path)
         else:
             readmes = list()
         instance["readmes"] = ingest_files(readmes)
-        for hit in hits:
-            hit["file_contents"] = open(hit["docid"]).read()
+
+        hits = retrieve_top_k_files(issue_context=query, k=3)
+
         instance["file_contents"] = dict()
         base_text_inputs = PROMPT_FUNCTIONS[prompt_style](instance)
         base_text_input_length = len(tokenizer_func(base_text_inputs, tokenizer))
@@ -171,7 +216,6 @@ def main(
     instance_id,
     base_commit,
     max_context_length,
-    document_encoding_func,
     output_dir,
     root_dir,
     include_readmes,
@@ -187,7 +231,6 @@ def main(
         logger.warning(f'Using GitHub token: {"*" * 8}{gh_token[-4:]}')
     gh = GhApi(token=gh_token)
     tokenizer, tokenizer_func = TOKENIZER_FUNCS["cl100k"]
-    document_encoding_func = DOCUMENT_ENCODING_FUNCTIONS[document_encoding_func]
     python = subprocess.check_output(["which", "python"]).decode("utf-8").strip()
     outputs = list()
     for inst_id, commit in tqdm(zip(instance_id, base_commit), total=len(instance_id)):
@@ -204,7 +247,6 @@ def main(
             commit,
             root_dir,
             gh_token,
-            document_encoding_func,
             python,
             inst_id,
             tokenizer,
@@ -242,6 +284,7 @@ def main(
                 "text_inputs": inputs,
                 "model_patch": model_patch,
                 "minimal_patch": minimal_patch,
+                "model_name_or_path": model_name,
             }
         )
     os.makedirs(output_dir, exist_ok=True)
@@ -264,12 +307,6 @@ if __name__ == "__main__":
     parser.add_argument("--instance-id", type=str, nargs="+")
     parser.add_argument("--base_commit", type=str, nargs="+")
     parser.add_argument("--max_context_length", type=int, default=16_000)
-    parser.add_argument(
-        "--document_encoding_func",
-        type=str,
-        choices=DOCUMENT_ENCODING_FUNCTIONS.keys(),
-        default="file_name_and_contents",
-    )
     parser.add_argument("--output_dir", type=str, default="./live_outputs")
     parser.add_argument("--root_dir", type=str, default="./run_live_data")
     parser.add_argument("--include_readmes", type=string_to_bool, default=False)
