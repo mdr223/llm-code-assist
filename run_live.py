@@ -129,13 +129,7 @@ def make_instance(
     commit,
     root_dir,
     token,
-    python,
     instance_id,
-    tokenizer,
-    tokenizer_func,
-    prompt_style,
-    max_context_len,
-    include_readmes,
 ):
     """
     Creates an instance for a given query and repository.
@@ -147,13 +141,7 @@ def make_instance(
         commit (str): The commit hash to use.
         root_dir (str): The root directory to clone the repository to.
         token (str): The GitHub token to use for authentication.
-        python (str): The path to the Python executable.
         instance_id (int): The ID of the instance.
-        tokenizer (str): The name of the tokenizer to use.
-        tokenizer_func (function): The function to use for tokenization.
-        prompt_style (str): The style of prompt to use.
-        max_context_len (int): The maximum length of the context.
-        include_readmes (bool): Whether to include README files in the instance.
 
     Returns:
         dict: The instance.
@@ -166,6 +154,19 @@ def make_instance(
             ["git", "rev-parse", "HEAD"], cwd=repo_dir
         ).decode("utf-8").strip()
 
+    return instance, repo_dir, commit
+
+def retriever_agent(
+    instance,
+    query,
+    repo_dir,
+    commit,
+    tokenizer,
+    tokenizer_func,
+    prompt_style,
+    max_context_len,
+    include_readmes,
+):
     with ContextManager(repo_dir, commit) as cm:
         if include_readmes:
             readmes = get_readme_files(cm.repo_path)
@@ -197,6 +198,27 @@ def make_instance(
         instance["text_inputs"] = PROMPT_FUNCTIONS[prompt_style](instance)
         return instance
 
+def codegen_agent(model_name, inputs):
+    logger.info(f"Calling model {model_name}")
+    start = time.time()
+    if model_name.startswith("gpt"):
+        import openai
+        openai.api_key = os.environ.get("OPENAI_API_KEY", None)
+        response, _ = call_chat(
+            model_name, inputs, use_azure=False, temperature=0, top_p=1
+        )
+        completion = response.choices[0]["message"]["content"]
+        logger.info(f'Generated {response.usage.completion_tokens} tokens in {(time.time() - start):.2f} seconds')
+    else:
+        from anthropic import Anthropic
+        api_key = os.environ.get("ANTHROPIC_API_KEY", None)
+        anthropic = Anthropic(api_key=api_key)
+        response = call_anthropic(
+            inputs, anthropic, model_name, temperature=0, top_p=1
+        )
+        completion = response.completion
+    
+    return completion
 
 def parse_issue_url(issue_url):
     issue_pat = re.compile(r"github\.com\/(.+?)\/(.+?)\/issues\/(\d+)")
@@ -226,77 +248,79 @@ def main(
         )
     if base_commit is None:
         base_commit = [None] * len(instance_id)
+
+    # for now, only process a single instance_id / base_commit
+    instance_id = instance_id[0]
+    base_commit = base_commit[0]
+
     gh_token = os.environ.get("GITHUB_TOKEN", None)
     if gh_token is not None:
         logger.warning(f'Using GitHub token: {"*" * 8}{gh_token[-4:]}')
     gh = GhApi(token=gh_token)
     tokenizer, tokenizer_func = TOKENIZER_FUNCS["cl100k"]
-    python = subprocess.check_output(["which", "python"]).decode("utf-8").strip()
-    outputs = list()
-    for inst_id, commit in tqdm(zip(instance_id, base_commit), total=len(instance_id)):
-        # owner, repo, issue_num = parse_issue_url(issue)
-        match = INSTANCE_RE.match(inst_id)
-        owner, repo, issue_num = match.group(1), match.group(2), match.group(3)
-        problem_statement = get_problem_statement(owner, repo, int(issue_num), gh)
-        instance_id = f"{owner}__{repo}-{issue_num}"
-        logger.info(f"Creating instance {inst_id}")
-        instance = make_instance(
-            owner,
-            repo,
-            problem_statement,
-            commit,
-            root_dir,
-            gh_token,
-            python,
-            inst_id,
-            tokenizer,
-            tokenizer_func,
-            prompt_style,
-            max_context_length,
-            include_readmes,
-        )
-        logger.info(f"Calling model {model_name}")
-        start = time.time()
-        if model_name.startswith("gpt"):
-            import openai
-            openai.api_key = os.environ.get("OPENAI_API_KEY", None)
-            inputs = instance["text_inputs"]
-            response, _ = call_chat(
-                model_name, inputs, use_azure=False, temperature=0, top_p=1
-            )
-            completion = response.choices[0]["message"]["content"]
-            logger.info(f'Generated {response.usage.completion_tokens} tokens in {(time.time() - start):.2f} seconds')
-        else:
-            from anthropic import Anthropic
-            api_key = os.environ.get("ANTHROPIC_API_KEY", None)
-            anthropic = Anthropic(api_key=api_key)
-            response = call_anthropic(
-                inputs, anthropic, model_name, temperature=0, top_p=1
-            )
-            completion = response.completion
-        model_patch = extract_diff(completion)
-        minimal_patch = extract_minimal_patch(model_patch)
-        outputs.append(
-            {
-                "instance_id": inst_id,
-                "response": completion,
-                "problem_statement": problem_statement,
-                "text_inputs": inputs,
-                "model_patch": model_patch,
-                "minimal_patch": minimal_patch,
-                "model_name_or_path": model_name,
-            }
-        )
+
+    # TODO: convert to compound ai system
+    # owner, repo, issue_num = parse_issue_url(issue)
+    match = INSTANCE_RE.match(instance_id)
+    owner, repo, issue_num = match.group(1), match.group(2), match.group(3)
+    problem_statement = get_problem_statement(owner, repo, int(issue_num), gh)
+    instance_id = f"{owner}__{repo}-{issue_num}"
+    logger.info(f"Creating instance {instance_id}")
+    instance, repo_dir, commit = make_instance(
+        owner,
+        repo,
+        problem_statement,
+        commit,
+        root_dir,
+        gh_token,
+        instance_id,
+    )
+
+    # call retriever agent
+    instance = retriever_agent(
+        instance,
+        problem_statement,
+        repo_dir,
+        commit,
+        tokenizer,
+        tokenizer_func,
+        prompt_style,
+        max_context_length,
+        include_readmes,
+    )
+
+    # call codegen agent
+    inputs = instance["text_inputs"]
+    completion = codegen_agent(model_name, inputs)
+
+    # extract answer
+    model_patch = extract_diff(completion)
+    minimal_patch = extract_minimal_patch(model_patch)
+    output = {
+        "instance_id": instance_id,
+        "response": completion,
+        "problem_statement": problem_statement,
+        "text_inputs": inputs,
+        "model_patch": model_patch,
+        "minimal_patch": minimal_patch,
+        "model_name_or_path": model_name,
+    }
+
+    # write answer to file
     os.makedirs(output_dir, exist_ok=True)
     output_file = Path(
         output_dir,
         f'{model_name}__{prompt_style}__{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.jsonl',
     )
     with open(output_file, "+a") as f:
-        for output in outputs:
-            print(json.dumps(output), file=f, flush=True)
+        print(json.dumps(output), file=f, flush=True)
     logger.info(f"Wrote output to {output_file}")
 
+    # invoke evaluation
+    response = subprocess.check_output(
+        ["python", "harness/run_evaluation.py", "--predictions_path", output_file, "--log_dir", "eval-logs", "--swe_bench_tasks", "swe-bench-tasks.jsonl", "--testbed", "testbed"], cwd=repo_dir
+    ).decode("utf-8").strip()
+    import pdb; pdb.set_trace()
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
