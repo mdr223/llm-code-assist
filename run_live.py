@@ -270,7 +270,7 @@ def main(
         owner,
         repo,
         problem_statement,
-        commit,
+        base_commit,
         root_dir,
         gh_token,
         instance_id,
