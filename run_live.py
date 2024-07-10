@@ -242,9 +242,6 @@ def main(
     root_dir,
     include_readmes,
 ):
-    # get current directory
-    cwd = os.getcwd()
-
     if base_commit is not None and len(instance_id) != len(base_commit):
         raise ValueError(
             f"Must provide either no base commits or one base commit per issue url"
@@ -320,9 +317,8 @@ def main(
     logger.info(f"Wrote output to {output_file}")
 
     # invoke evaluation
-    os.chdir(cwd)
     response = subprocess.check_output(
-        ["python", "harness/run_evaluation.py", "--predictions_path", str(output_file), "--log_dir", "eval-logs", "--swe_bench_tasks", "swe-bench-tasks.jsonl", "--testbed", "testbed"], cwd=repo_dir
+        ["python", "harness/run_evaluation.py", "--predictions_path", str(output_file), "--log_dir", "eval-logs", "--swe_bench_tasks", "swe-bench-tasks.jsonl", "--testbed", "testbed"]
     ).decode("utf-8").strip()
     import pdb; pdb.set_trace()
 
