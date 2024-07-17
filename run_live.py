@@ -18,6 +18,7 @@ from git import Repo
 from pathlib import Path
 from datetime import datetime
 from tqdm.auto import tqdm
+from harness.constants import TESTS_PASSED
 from make_datasets.utils import ContextManager, string_to_bool, extract_diff, extract_minimal_patch
 from make_datasets.create_instance import (
     PROMPT_FUNCTIONS,
@@ -306,20 +307,32 @@ def main(
         "model_name_or_path": model_name,
     }
 
-    # write answer to file
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = Path(
-        output_dir,
-        f'{model_name}__{prompt_style}__{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.jsonl',
-    )
-    with open(output_file, "+a") as f:
-        print(json.dumps(output), file=f, flush=True)
-    logger.info(f"Wrote output to {output_file}")
+    # # write answer to file
+    # os.makedirs(output_dir, exist_ok=True)
+    # output_file = Path(
+    #     output_dir,
+    #     f'{model_name}__{prompt_style}__{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.jsonl',
+    # )
+    # with open(output_file, "+a") as f:
+    #     print(json.dumps(output), file=f, flush=True)
+    # logger.info(f"Wrote output to {output_file}")
+    output_file = "output/gpt-4-0125-preview__style-3__2024-07-17_18-30-50-modified.jsonl"
 
     # invoke evaluation
-    response = subprocess.check_output(
+    _ = subprocess.check_output(
         ["python", "harness/run_evaluation.py", "--predictions_path", str(output_file), "--log_dir", "eval-logs", "--swe_bench_tasks", "swe-bench-tasks.jsonl", "--testbed", "testbed"]
     ).decode("utf-8").strip()
+
+    # check output for string indicating success
+    success = False
+    with open(f'eval-logs/{model_name}/{instance_id}.{model_name}.eval.log', 'r') as f:
+        output = f.read()
+        for line in output[:-10]:
+            if TESTS_PASSED in line:
+                success = True
+                break
+
+    print(f"SUCCESS: {success}")
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
