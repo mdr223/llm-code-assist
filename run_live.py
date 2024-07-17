@@ -320,7 +320,6 @@ def main(
     response = subprocess.check_output(
         ["python", "harness/run_evaluation.py", "--predictions_path", str(output_file), "--log_dir", "eval-logs", "--swe_bench_tasks", "swe-bench-tasks.jsonl", "--testbed", "testbed"]
     ).decode("utf-8").strip()
-    import pdb; pdb.set_trace()
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=__doc__)
