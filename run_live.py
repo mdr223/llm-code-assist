@@ -307,16 +307,15 @@ def main(
         "model_name_or_path": model_name,
     }
 
-    # # write answer to file
-    # os.makedirs(output_dir, exist_ok=True)
-    # output_file = Path(
-    #     output_dir,
-    #     f'{model_name}__{prompt_style}__{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.jsonl',
-    # )
-    # with open(output_file, "+a") as f:
-    #     print(json.dumps(output), file=f, flush=True)
-    # logger.info(f"Wrote output to {output_file}")
-    output_file = "output/gpt-4-0125-preview__style-3__2024-07-17_18-30-50-modified.jsonl"
+    # write answer to file
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = Path(
+        output_dir,
+        f'{model_name}__{prompt_style}__{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.jsonl',
+    )
+    with open(output_file, "+a") as f:
+        print(json.dumps(output), file=f, flush=True)
+    logger.info(f"Wrote output to {output_file}")
 
     # invoke evaluation
     _ = subprocess.check_output(
