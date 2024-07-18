@@ -684,7 +684,6 @@ class TaskEnvContextManager:
                     self.exec(f"git restore {test}".split(" "))
 
         # Apply patch to testbed directory
-        import pdb; pdb.set_trace()
         apply_cmd = (
             f"git apply -v -R {patch_path}" if revert else f"git apply -v {patch_path}"
         )

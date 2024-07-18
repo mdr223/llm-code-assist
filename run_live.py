@@ -327,7 +327,7 @@ def main(
     success = False
     with open(f'eval-logs/{model_name}/{instance_id}.{model_name}.eval.log', 'r') as f:
         output = f.read()
-        for line in output[:-10]:
+        for line in output[-10:]:
             if TESTS_PASSED in line:
                 success = True
                 break
