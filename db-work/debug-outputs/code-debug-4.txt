@@ -1,0 +1,45 @@
+The error messages indicate that there is a conflict between the `Tuple` struct defined in `rustdb/src/storage/mod.rs` and the `Tuple` struct defined in `rustdb/src/storage/tuple.rs`. To resolve this, we should ensure that only one `Tuple` definition is used and remove or replace the conflicting definition.
+
+Given the context, it seems that the `Tuple` struct in `rustdb/src/storage/tuple.rs` is the actual implementation and the definition in `rustdb/src/storage/mod.rs` should be removed.
+
+Here's the code patch to resolve the issue:
+
+```patch
+--- rustdb/src/storage/mod.rs
++++ rustdb/src/storage/mod.rs
+@@ -5,8 +5,6 @@
+ pub mod tuple;
+ use std::io::{Error as IoError, Result as IoResult};
+ 
+-// Remove the conflicting Tuple definition
+-pub struct Tuple;
+-
+ pub struct Page;
+ 
+ pub trait HeapFile {
+@@ -19,7 +17,7 @@
+     fn iterator(&self) -> Box<dyn Iterator<Item = IoResult<Tuple>>>;
+ }
+ 
+-pub struct HeapFileImpl;
++pub struct HeapFileImpl;
+ 
+ impl HeapFile for HeapFileImpl {
+     fn read_page(&self, _page_no: usize) -> IoResult<Page> {
+--- rustdb/src/main.rs
++++ rustdb/src/main.rs
+@@ -2,7 +2,7 @@
+ use crate::storage::file_store::FileHeapFile;
+ use crate::storage::tuple::{Tuple, Field};
+-use crate::storage::HeapFile;
+ 
+ fn main() {
+     // Create a new heap file
+     let mut heap_file = FileHeapFile::new("test_heap_file.dat").expect("Failed to create heap file");
+```
+
+This code patch does the following:
+1. Removes the conflicting `Tuple` struct definition from `rustdb/src/storage/mod.rs`.
+2. Adjusts the `main.rs` import, ensuring that all `Tuple` references use the `rustdb/src/storage/tuple.rs` definition.
+
+After applying this patch, the code should compile correctly without the type mismatch errors.

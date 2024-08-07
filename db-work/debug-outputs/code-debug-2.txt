@@ -1,0 +1,178 @@
+To resolve the import errors in `main.rs`, we need to fix the module paths and structure in `main.rs` and in the `mod.rs`. Here's an updated `mod.rs` to include the `file_store.rs` and `tuple.rs`.
+
+Let's create a patch for `mod.rs` to re-export the necessary modules, and fix the module imports in `main.rs`:
+
+First, update `mod.rs` to include the sub-modules:
+
+```rust
+rustdb/src/storage/mod.rs
+----
+pub mod file_store;
+pub mod tuple;
+
+use std::io::{Error as IoError, Result as IoResult};
+pub struct Page;
+pub struct Tuple;
+pub trait HeapFile {
+    fn read_page(&self, page_no: usize) -> IoResult<Page>;
+    fn insert_tuple(&mut self, tuple: &Tuple) -> IoResult<()>;
+    fn delete_tuple(&mut self, tuple: &Tuple) -> IoResult<()>;
+    fn flush_page(&mut self, page: &Page) -> IoResult<()>;
+    fn iterator(&self) -> Box<dyn Iterator<Item = IoResult<Tuple>>>;
+}
+pub struct HeapFileImpl;
+impl HeapFile for HeapFileImpl {
+    fn read_page(&self, _page_no: usize) -> IoResult<Page> {
+        unimplemented!("Implemented by specific access methods")
+    }
+    fn insert_tuple(&mut self, _tuple: &Tuple) -> IoResult<()> {
+        unimplemented!("Implemented by specific access methods")
+    }
+    fn delete_tuple(&mut self, _tuple: &Tuple) -> IoResult<()> {
+        unimplemented!("Implemented by specific access methods")
+    }
+    fn flush_page(&mut self, _page: &Page) -> IoResult<()> {
+        unimplemented!("Implemented by specific access methods")
+    }
+    fn iterator(&self) -> Box<dyn Iterator<Item = IoResult<Tuple>>> {
+        unimplemented!("Implemented by specific access methods")
+    }
+}
+```
+
+Then, update your `main.rs` to fix the module imports:
+
+```rust
+rustdb/src/main.rs
+----
+mod storage;
+use crate::storage::file_store::FileHeapFile;
+use crate::storage::tuple::{Tuple, Field};
+use crate::storage::HeapFile;
+
+fn main() {
+    // Create a new heap file
+    let mut heap_file = FileHeapFile::new("test_heap_file.dat").expect("Failed to create heap file");
+
+    // Create the first tuple
+    let tuple1 = Tuple::new(None, vec![
+        Field::Integer(42),
+        Field::String("Hello, World!".to_string()),
+    ]);
+
+    // Create the second tuple
+    let tuple2 = Tuple::new(None, vec![
+        Field::Integer(100),
+        Field::String("RustDB".to_string()),
+    ]);
+
+    // Insert the tuples into the heap file
+    heap_file.insert_tuple(&tuple1).expect("Failed to insert tuple1");
+    heap_file.insert_tuple(&tuple2).expect("Failed to insert tuple2");
+
+    println!("Inserted two tuples into the heap file.");
+
+    // Optional: Read back the tuples to verify insertion
+    // This part would require implementing an iterator for the heap file
+    // and is not included in the current implementation.
+}
+```
+
+Finally, ensure to correct the structure and any new changes in the files such as updating the constructor in `tuple.rs` to keep record_id optional:
+
+```rust
+rustdb/src/storage/tuple.rs
+-----
+// File: rustdb/src/storage/tuple.rs
+use std::fmt;
+
+// Define the RecordId struct
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordId {
+    page_number: u32,
+    position: u32,
+}
+
+// Define the Field enum
+#[derive(Debug, Clone, PartialEq)]
+pub enum Field {
+    Integer(i32),
+    String(String),
+}
+
+// Define the Tuple struct
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tuple {
+    record_id: Option<RecordId>,
+    fields: Vec<Field>,
+}
+
+impl Tuple {
+    // Constructor
+    pub fn new(fields: Vec<Field>) -> Self {
+        Tuple {
+            record_id: None,
+            fields,
+        }
+    }
+
+    // Getter for record_id
+    pub fn get_record_id(&self) -> Option<&RecordId> {
+        self.record_id.as_ref()
+    }
+
+    // Getter for fields
+    pub fn get_fields(&self) -> &Vec<Field> {
+        &self.fields
+    }
+
+    // Setter for record_id
+    pub fn set_record_id(&mut self, record_id: RecordId) {
+        self.record_id = Some(record_id);
+    }
+
+    // Method to add a field
+    pub fn add_field(&mut self, field: Field) {
+        self.fields.push(field);
+    }
+
+    // Method to get a field by index
+    pub fn get_field(&self, index: usize) -> Option<&Field> {
+        self.fields.get(index)
+    }
+}
+
+// Implement Display for Tuple
+impl fmt::Display for Tuple {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Tuple(")?;
+        if let Some(record_id) = &self.record_id {
+            write!(f, "RecordId({}, {}), ", record_id.page_number, record_id.position)?;
+        } else {
+            write!(f, "No RecordId, ")?;
+        }
+        for (i, field) in self.fields.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            match field {
+                Field::Integer(val) => write!(f, "{}", val)?,
+                Field::String(val) => write!(f, "\"{}\"", val)?,
+            }
+        }
+        write!(f, ")")
+    }
+}
+
+// Implement Display for Field
+impl fmt::Display for Field {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Field::Integer(val) => write!(f, "{}", val),
+            Field::String(val) => write!(f, "\"{}\"", val),
+        }
+    }
+}
+```
+
+By applying these patches, the unresolved import errors should be resolved, and your Rust code should compile without any issues.

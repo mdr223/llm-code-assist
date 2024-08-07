@@ -1,0 +1,108 @@
+
+You are an intelligent agent tasked with generating code patches for a code base in order to implement a user request.
+
+The system is divided into two parts:
+- the system software, which contains the actual source code files (written in Rust)
+- the system documentation, which describes the purpose and desired implementation of the source code
+
+Your job is to generate code patches for files in the code base which do one or more of the following:
+- create new code in one or more existing files
+- delete code from one or more existing file
+
+Your objective is to produce a valid code patch which can be applied directly to the file(s) you specify.
+
+RELEVANT SYSTEM DOCS
+--------------------
+system-docs/storage-overview.md
+-----
+The storage layer is implemented in `rustdb/src/storage/` and contains the following files:
+
+`mod.rs`
+-----
+This file implements the base interface for all access methods. It contains a struct for a `HeapFile` which has abstract methods for:
+- `readPage(pageNo)`: reading the specified page
+- `insertTuple(tuple)`: inserting a tuple into the heap file
+- `deleteTuple(tuple)`: deleting a tuple from the heap file
+- `flushPage(page)`: flushing a page to the storage backend
+- `iterator()`: iterator for reading all tuples in the heap file
+
+`file_store.rs`
+-----
+This file implements the interface defined in `mod.rs` for the local disk access method. This file contains an implementation of the `HeapFile` struct -- and its abstract methods -- assuming a local disk storage backend.
+
+`tuple.rs`
+-----
+This file contains the definition and implementation of tuples in the database system. It defines a `Tuple` struct which has:
+- a record id (a tuple specifying the page number and position the tuple was read from)
+- a list of fields
+Each field in the `Tuple` may be an Integer or a String.
+
+system-docs/system-overview.md
+-----
+This system implements a database in Rust.
+
+The database is implemented in the `rustdb/` directory.
+
+MODULES
+-----
+The database currently has the following modules:
+- **Storage Layer:** implemented in `rustdb/src/storage/` which contains the following files
+  - `mod.rs`: the base interface for the storage layer; different access methods overwrite its core functionalities
+  - `file_store.rs`: the access method which implements the storage layer in `mod.rs` using files on local disk
+  - `tuple.rs`: a file containing the definition and implementation of tuples in the database system
+
+
+
+
+RELEVANT SOURCE CODE
+--------------------
+system-docs/storage-overview.md
+-----
+The storage layer is implemented in `rustdb/src/storage/` and contains the following files:
+
+`mod.rs`
+-----
+This file implements the base interface for all access methods. It contains a struct for a `HeapFile` which has abstract methods for:
+- `readPage(pageNo)`: reading the specified page
+- `insertTuple(tuple)`: inserting a tuple into the heap file
+- `deleteTuple(tuple)`: deleting a tuple from the heap file
+- `flushPage(page)`: flushing a page to the storage backend
+- `iterator()`: iterator for reading all tuples in the heap file
+
+`file_store.rs`
+-----
+This file implements the interface defined in `mod.rs` for the local disk access method. This file contains an implementation of the `HeapFile` struct -- and its abstract methods -- assuming a local disk storage backend.
+
+`tuple.rs`
+-----
+This file contains the definition and implementation of tuples in the database system. It defines a `Tuple` struct which has:
+- a record id (a tuple specifying the page number and position the tuple was read from)
+- a list of fields
+Each field in the `Tuple` may be an Integer or a String.
+
+system-docs/system-overview.md
+-----
+This system implements a database in Rust.
+
+The database is implemented in the `rustdb/` directory.
+
+MODULES
+-----
+The database currently has the following modules:
+- **Storage Layer:** implemented in `rustdb/src/storage/` which contains the following files
+  - `mod.rs`: the base interface for the storage layer; different access methods overwrite its core functionalities
+  - `file_store.rs`: the access method which implements the storage layer in `mod.rs` using files on local disk
+  - `tuple.rs`: a file containing the definition and implementation of tuples in the database system
+
+
+
+
+USER REQUEST
+------------
+Please write some code which can go into the main() function of main.rs which constructs two tuples and inserts them into a heap file using the HeapFile implementation in file_store.rs.
+
+
+
+YOUR CODE PATCH(ES)
+-------------------
+

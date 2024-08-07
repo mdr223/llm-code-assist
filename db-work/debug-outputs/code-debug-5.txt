@@ -1,0 +1,114 @@
+To resolve the errors, you need to correctly import the `Tuple` type from the `tuple` module. The `Tuple` type is defined in the `tuple.rs` file, which means it should be referenced appropriately within the `mod.rs` and `file_store.rs` files.
+
+Here are the necessary changes to fix the issue:
+
+1. **Import the `Tuple` type in `mod.rs` and `file_store.rs`.**
+2. **Update the `file_store.rs` to properly implement `insert_tuple`, among other methods if necessary.**
+
+### Patch for `mod.rs`
+
+Adjust the import statements in `mod.rs` to correctly refer to `Tuple`:
+
+```rust
+rustdb/src/storage/mod.rs
+-----
+pub mod file_store;
+pub mod tuple;
+use tuple::Tuple; // Add this line to import `Tuple` correctly
+use std::io::{Error as IoError, Result as IoResult};
+
+pub struct Page;
+
+pub trait HeapFile {
+    fn read_page(&self, page_no: usize) -> IoResult<Page>;
+    fn insert_tuple(&mut self, tuple: &Tuple) -> IoResult<()>;
+    fn delete_tuple(&mut self, tuple: &Tuple) -> IoResult<()>;
+    fn flush_page(&mut self, page: &Page) -> IoResult<()>;
+    fn iterator(&self) -> Box<dyn Iterator<Item = IoResult<Tuple>>>;
+}
+
+pub struct HeapFileImpl;
+
+impl HeapFile for HeapFileImpl {
+    fn read_page(&self, _page_no: usize) -> IoResult<Page> {
+        unimplemented!("Implemented by specific access methods")
+    }
+
+    fn insert_tuple(&mut self, _tuple: &Tuple) -> IoResult<()> {
+        unimplemented!("Implemented by specific access methods")
+    }
+
+    fn delete_tuple(&mut self, _tuple: &Tuple) -> IoResult<()> {
+        unimplemented!("Implemented by specific access methods")
+    }
+
+    fn flush_page(&mut self, _page: &Page) -> IoResult<()> {
+        unimplemented!("Implemented by specific access methods")
+    }
+
+    fn iterator(&self) -> Box<dyn Iterator<Item = IoResult<Tuple>>> {
+        unimplemented!("Implemented by specific access methods")
+    }
+}
+```
+
+### Patch for `file_store.rs`
+
+Similarly, update the import statements in `file_store.rs`:
+
+```rust
+rustdb/src/storage/file_store.rs
+-----
+use super::{HeapFile, Page};
+use super::tuple::Tuple; // Add this line to import `Tuple` correctly
+
+pub struct FileHeapFile {
+    // Assuming the FileHeapFile struct's fields and methods need to be filled based on provided implementation details.
+}
+
+impl FileHeapFile {
+    pub fn new(file_path: &str) -> std::io::Result<Self> {
+        // Implementation details to create a new heap file
+        Ok(FileHeapFile {
+            // Initialize the FileHeapFile's fields
+        })
+    }
+
+    // Implement other methods as needed
+}
+
+impl HeapFile for FileHeapFile {
+    fn read_page(&self, page_no: usize) -> std::io::Result<Page> {
+        // Implementation for reading a page
+        unimplemented!()
+    }
+
+    fn insert_tuple(&mut self, tuple: &Tuple) -> std::io::Result<()> {
+        // Implementation for inserting a tuple
+        unimplemented!()
+    }
+
+    fn delete_tuple(&mut self, tuple: &Tuple) -> std::io::Result<()> {
+        // Implementation for deleting a tuple
+        unimplemented!()
+    }
+
+    fn flush_page(&mut self, page: &Page) -> std::io::Result<()> {
+        // Implementation for flushing a page
+        unimplemented!()
+    }
+
+    fn iterator(&self) -> Box<dyn Iterator<Item = std::io::Result<Tuple>>> {
+        // Implementation for iterator
+        unimplemented!()
+    }
+}
+```
+
+### Patch Summary
+
+- Ensure `Tuple` is imported properly in `mod.rs`.
+- Ensure `Tuple` is imported properly in `file_store.rs`.
+- Optionally fill out methods in `FileHeapFile` as specific to the implementation, currently marked as `unimplemented!`.
+
+Applying these patches should resolve the compilation errors you were encountering.

@@ -1,0 +1,41 @@
+To resolve the unresolved import issues, it appears that the problem lies in the `mod.rs` file not properly exposing `file_store` and `tuple` to the rest of the crate. You need to modify `rustdb/src/storage/mod.rs` to include proper `pub mod` declarations for the `file_store` and `tuple` submodules.
+
+Here is a code patch that should resolve the issue:
+
+```diff
+--- a/rustdb/src/storage/mod.rs
++++ b/rustdb/src/storage/mod.rs
+@@ -1,4 +1,6 @@
+ use std::io::{Error as IoError, Result as IoResult};
+ 
++pub mod file_store;
++pub mod tuple;
+ 
+ pub struct HeapFile;
+ 
+--- a/rustdb/src/main.rs
++++ b/rustdb/src/main.rs
+@@ -1,7 +1,7 @@
+-mod mod.rs;
+-use crate::storage::file_store::FileHeapFile;
+-use crate::storage::tuple::{Tuple, Field};
+-use crate::storage::HeapFile;
++mod storage;
++use storage::file_store::FileHeapFile;
++use storage::tuple::{Tuple, Field};
++use storage::HeapFile;
+
+fn main() {
+    println!("Hello, world!");
+```
+
+### Explanation:
+1. **Changes in `rustdb/src/storage/mod.rs`**:
+    - Added `pub mod file_store;` to publicly expose the `file_store` module.
+    - Added `pub mod tuple;` to publicly expose the `tuple` module.
+
+2. **Changes in `rustdb/src/main.rs`**:
+    - Modified the way we declare the storage module with `mod storage;`.
+    - Updated import paths to use the correct module paths: `use storage::file_store::FileHeapFile;`, `use storage::tuple::{Tuple, Field};` and `use storage::HeapFile;`.
+
+This should resolve the `unresolved import` compilation errors. After applying these changes, try compiling the project again with `cargo build`.

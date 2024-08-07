@@ -1,0 +1,39 @@
+To resolve the issue of the Rust compiler not being able to locate the `storage` module in the crate root, you need to ensure that the `storage` module is properly declared and can be found in the project structure. This involves making sure that `mod storage;` is declared in the `lib.rs` file if your project has one, or directly in the `main.rs` file if your project is a binary crate.
+
+Here is the patch to your `main.rs` file:
+
+1. Open `rustdb/src/main.rs` file.
+2. Add the `mod storage;` declaration at the top of `main.rs`.
+
+### Patch
+
+```rust
+// rustdb/src/main.rs
+
+// Declare the storage module
+mod storage;
+
+use crate::storage::file_store::FileHeapFile;
+use crate::storage::tuple::{Tuple, Field};
+use crate::storage::HeapFile;
+
+fn main() {
+    // Your main function code here
+}
+```
+
+Additionally, if your project has a `lib.rs` file (common for library crates), you should add the `mod storage;` declaration there instead. Here is an example:
+
+```rust
+// rustdb/src/lib.rs
+
+// Declare the storage module
+pub mod storage;
+
+// Re-export storage components if needed
+pub use crate::storage::file_store::FileHeapFile;
+pub use crate::storage::tuple::{Tuple, Field};
+pub use crate::storage::HeapFile;
+```
+
+By applying these patches, you will make sure that the `storage` module is declared and accessible, allowing the Rust compiler to resolve the imports successfully.

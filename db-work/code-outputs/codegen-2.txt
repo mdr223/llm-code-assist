@@ -1,0 +1,55 @@
+To fulfill your request, I'll create a code patch for the `main.rs` file to construct two tuples and insert them into a heap file using the `HeapFile` implementation from `file_store.rs`. Here's the code patch:
+
+```rust
+--- a/rustdb/src/main.rs
++++ b/rustdb/src/main.rs
+@@ -1,3 +1,30 @@
++use crate::storage::file_store::FileHeapFile;
++use crate::storage::tuple::{Tuple, Field};
++use crate::storage::HeapFile;
++
+ fn main() {
+-    println!("Hello, world!");
++    // Create a new heap file
++    let mut heap_file = FileHeapFile::new("test_heap_file.dat").expect("Failed to create heap file");
++
++    // Create the first tuple
++    let tuple1 = Tuple::new(vec![
++        Field::Integer(42),
++        Field::String("Hello, World!".to_string()),
++    ]);
++
++    // Create the second tuple
++    let tuple2 = Tuple::new(vec![
++        Field::Integer(100),
++        Field::String("RustDB".to_string()),
++    ]);
++
++    // Insert the tuples into the heap file
++    heap_file.insert_tuple(&tuple1).expect("Failed to insert tuple1");
++    heap_file.insert_tuple(&tuple2).expect("Failed to insert tuple2");
++
++    println!("Inserted two tuples into the heap file.");
++
++    // Optional: Read back the tuples to verify insertion
++    // This part would require implementing an iterator for the heap file
++    // and is not included in the current implementation.
+ }
+```
+
+This code patch does the following:
+
+1. Imports the necessary modules and structs from the storage layer.
+2. Creates a new `FileHeapFile` instance, which implements the `HeapFile` trait.
+3. Constructs two `Tuple` instances with different fields (an integer and a string for each).
+4. Inserts both tuples into the heap file using the `insert_tuple` method.
+5. Prints a confirmation message.
+
+Note that this code assumes:
+- The `FileHeapFile` struct in `file_store.rs` implements the `HeapFile` trait and has a `new` method that takes a file name.
+- The `Tuple` struct in `tuple.rs` has a `new` method that takes a vector of `Field` enum values.
+- The `Field` enum in `tuple.rs` has variants for `Integer` and `String`.
+
+You may need to adjust the import statements or struct/method names if they differ in your actual implementation.
+
+To apply this patch, you would save it to a file (e.g., `main_patch.diff`) and then use a patching tool or manually edit the `main.rs` file to incorporate these changes.
