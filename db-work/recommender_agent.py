@@ -11,7 +11,7 @@ RECOMMENDER_SYSTEM_PROMPT = """
 You are an intelligent agent tasked with recommending system-level changes to a code base in order to implement a user request.
 
 The system is divided into two parts:
-- the system software, which contains the actual source code files (written in Rust)
+- the system software, which contains the actual source code files (written in {language})
 - the system documentation, which describes the purpose and desired implementation of the source code
 
 Your job is to recommend *high-level* decisions related to:
@@ -76,6 +76,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num-docs", default=3, help="number of relevant system documents to fetch"
     )
+    parser.add_argument(
+        "--name", default="rustdb", help="name for the project",
+    )
+    parser.add_argument(
+        "--language", default="Rust", help="language for the source code of the project",
+    )
     args = parser.parse_args()
 
     # the user has to provide a prompt
@@ -87,21 +93,27 @@ if __name__ == "__main__":
     with open(args.prompt, 'r') as f:
         user_request = f.read()
 
+    # parse args to set local variables
+    dbname = args.name
+    system_docs = f"system-docs-{dbname}"
+    language = args.language
+    num_docs = int(args.num_docs)
+
     # get tree layouts for rustdb and system-docs
-    source_out = subprocess.run("tree rustdb --gitfile rustdb-ignore-files.txt --noreport".split(" "), capture_output=True)
+    source_out = subprocess.run(f"tree {dbname} --gitfile ignore-files.txt --noreport".split(" "), capture_output=True)
     source_code_layout = source_out.stdout.decode("utf-8")
-    docs_out = subprocess.run("tree system-docs --noreport".split(" "), capture_output=True)
+    docs_out = subprocess.run(f"tree {system_docs} --noreport".split(" "), capture_output=True)
     system_docs_layout = docs_out.stdout.decode("utf-8")
 
     # update vector store
-    update_collection("system-docs", "system-docs")
+    update_collection(system_docs, system_docs)
 
     # get handles to collections
     chroma_client = chromadb.PersistentClient(path="chromadb")
-    docs_collection = chroma_client.get_collection(name="system-docs")
+    docs_collection = chroma_client.get_collection(name=system_docs)
 
     # query the collection for relevant docs
-    results = docs_collection.query(query_texts=[user_request], n_results=args.num_docs)
+    results = docs_collection.query(query_texts=[user_request], n_results=num_docs)
     relevant_docs = results['documents'][0]
     relevant_ids = results['ids'][0]
     relevant_docs_str = ""
@@ -110,6 +122,7 @@ if __name__ == "__main__":
 
     # format the recommendation prompt
     recommendation_prompt = RECOMMENDER_SYSTEM_PROMPT.format(
+        language=language,
         user_request=user_request,
         source_code_layout=source_code_layout,
         system_docs_layout=system_docs_layout,

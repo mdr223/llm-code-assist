@@ -10,7 +10,7 @@ CODE_DEBUGGER_SYSTEM_PROMPT = """
 You are an intelligent agent tasked with debugging code and compilation errors for a code base.
 
 The system is divided into two parts:
-- the system software, which contains the actual source code files (written in Rust)
+- the system software, which contains the actual source code files (written in {language})
 - the system documentation, which describes the purpose and desired implementation of the source code
 
 Your job is to debug code and/or compilation errors and suggest fixes to the code base which do one or more of the following:
@@ -74,6 +74,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num-code-files", default=3, help="number of relevant source code files to fetch"
     )
+    parser.add_argument(
+        "--name", default="rustdb", help="name for the project",
+    )
+    parser.add_argument(
+        "--language", default="Rust", help="language for the source code of the project",
+    )
     args = parser.parse_args()
 
     # the user has to provide a prompt
@@ -85,17 +91,25 @@ if __name__ == "__main__":
     with open(args.prompt, 'r') as f:
         user_request = f.read()
 
+    # parse args to set local variables
+    dbname = args.name
+    system_docs = f"system-docs-{dbname}"
+    language = args.language
+    num_docs = int(args.num_docs)
+    num_code_files = int(args.num_code_files)
+
     # update vector stores
-    update_collection("system-docs", "system-docs")
-    update_collection("source-code", "rustdb", allowed_extensions=[".rs"])
+    extensions = [".rs"] if language.lower() == "rust" else [".go"]
+    update_collection(system_docs, system_docs)
+    update_collection(dbname, dbname, allowed_extensions=extensions)
 
     # get handles to collections
     chroma_client = chromadb.PersistentClient(path="chromadb")
-    docs_collection = chroma_client.get_collection(name="system-docs")
-    code_collection = chroma_client.get_collection(name="source-code")
+    docs_collection = chroma_client.get_collection(name=system_docs)
+    code_collection = chroma_client.get_collection(name=dbname)
 
     # query the collection for relevant docs
-    results = docs_collection.query(query_texts=[user_request], n_results=args.num_docs)
+    results = docs_collection.query(query_texts=[user_request], n_results=num_docs)
     relevant_docs = results['documents'][0]
     relevant_doc_ids = results['ids'][0]
     relevant_docs_str = ""
@@ -103,7 +117,7 @@ if __name__ == "__main__":
         relevant_docs_str += f"{id}\n-----\n{doc}\n\n"
 
     # query the collection for relevant source code
-    results = code_collection.query(query_texts=[user_request], n_results=args.num_docs)
+    results = code_collection.query(query_texts=[user_request], n_results=num_code_files)
     relevant_code_files = results['documents'][0]
     relevant_code_ids = results['ids'][0]
     relevant_code_str = ""
@@ -112,6 +126,7 @@ if __name__ == "__main__":
 
     # format the recommendation prompt
     code_debug_prompt = CODE_DEBUGGER_SYSTEM_PROMPT.format(
+        language=language,
         user_request=user_request,
         relevant_docs=relevant_docs_str,
         relevant_code=relevant_code_str,
