@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.spy": "python",
+        "*.seq": "python",
+        "*.toml": "toml",
+        "iosfwd": "cpp"
+    }
+}

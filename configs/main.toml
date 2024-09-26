@@ -1,0 +1,10 @@
+working_stage="./working_stage"
+code_dir = "./rustdb"
+llm="sonnet"
+verbose=true
+max_llm_attempts=3
+text_split_length=4096
+
+default_system_msg = """
+You are a programmer trying to fix Github issues. Be sure to format your responses correctly and to only include the necessary changes.
+"""
