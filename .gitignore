@@ -173,3 +173,4 @@ swebench-*.csv
 **/output
 tree_src/**/*transpiled*
 tree_src**/*assistant*
+prompt.txt
