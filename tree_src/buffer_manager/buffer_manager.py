@@ -1,15 +1,15 @@
-"""
-The buffer manager safely caches pages between storage layers.
-It is fully thread-safe and provides strong guarantees for durability and atomicity.
-"""
-
-import typing as t
-
-from .page import PageInterface
+from buffer_manager.page import PageInterface
 from .replacement_policy import ReplacementPolicyInterface
 
 class BufferManagerInterface:
-    """Interface for buffer manager."""
+    """
+    Interface for buffer manager.
+    The buffer manager safely caches pages between storage layers.
+    It is fully thread-safe and provides strong guarantees for durability and atomicity.
+    """
+
+    import typing as t
+    
     def __init__(self, filename: str, page_size: int, max_size_bytes: int, replacement_policy: ReplacementPolicyInterface):
         """
         Initializes the buffer manager with the given filename, page size, and maximum size in bytes.
@@ -77,7 +77,9 @@ class BufferManager(BufferManagerInterface):
     - If the buffer manager is full, evict a page using the replacement policy.
 - Unpinning a page:
     - Decrement the pin count.
-    - Erase the page from the pinned map if the pin count is zero, and move the item to the replacement policy.
+    - If the pin count reaches 0:
+        - Erase the page number from the pinned map.
+        - Move the page to the replacement policy.
 - Eviction and Flushing a page:
     - Just write the page to disk if it is dirty.
     - Be sure to update the file size if the page number is out of bounds.

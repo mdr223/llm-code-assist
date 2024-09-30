@@ -180,6 +180,10 @@ class LanguageModel:
         if self.verbose:
             print(f"{bcolors.OKGREEN}{bcolors.BOLD}Prompt:\n{prompt}\nCache Key:{cache_key}\n{bcolors.ENDC}")
         # Call LLM
+        with open("prompt.txt", "w") as f:
+            f.write(system_msg)
+            f.write("\n")
+            f.write(prompt)
         response, error = None, None
         for _ in range(self.max_attempts):
             if self.llm.is_openai():
@@ -289,7 +293,7 @@ class LanguageModel:
         # Only remove the surroundings from the first and last line (after strip)
         first_line = lines[0]
         last_line = lines[-1]
-        possible_surroundings = ["```json", "```diff", "```py", "```python", "```md", "```\n", "\n```"]
+        possible_surroundings = ["```json", "```diff", "```python", "```py", "```md", "```\n", "\n```"]
         for lang in langs:
             possible_surroundings = [f"```{lang}"] + possible_surroundings
         for surrounding in possible_surroundings:

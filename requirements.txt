@@ -8,3 +8,7 @@ altair
 ipywidgets
 semantic-text-splitter
 sqlite-vss
+beautifulsoup4
+googlesearch-python
+toml
+ordered-set

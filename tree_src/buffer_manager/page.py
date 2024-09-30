@@ -1,5 +1,3 @@
-import typing as t
-
 class PageInterface:
     """
     Interface for a page.
@@ -12,6 +10,7 @@ class PageInterface:
     - 24-page_size bytes: Arbitrary data.
 
     Note that the dirty flag, page latch, etc. are stored in memory as class variables, not written to disk.
+    ALWAYS assumes that the caller has acquire the latch before reading or writing to the page bytes.
     """
     from threading import Lock
 
@@ -30,12 +29,14 @@ class PageInterface:
         Sets the bytes at the given offset.
         Will increment the version, set the dirty flag, but not update the checksum.
         The checksum will be updated when the page is about to be written to disk.
+        Assumes that the caller has acquired the latch before writing to the page bytes.
         """
         pass
 
     def get_bytes(self, offset: int, length: int) -> bytes:
         """
         Gets the bytes at the given offset.
+        Assumes that the caller has acquired the latch before reading from the page bytes.
         """
         pass
 
@@ -81,6 +82,7 @@ class PageInterface:
         Returns the page data for writing.
         Recomputes the checksum if the page is dirty.
         Sets the page to clean, since it assumes the data is immediately flushed to disk.
+        Assumes the caller has acquired the latch before reading the page bytes.
         """
         pass
 

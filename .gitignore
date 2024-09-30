@@ -171,3 +171,5 @@ sanity-check
 *tasks.jsonl
 swebench-*.csv
 **/output
+tree_src/**/*transpiled*
+tree_src**/*assistant*
