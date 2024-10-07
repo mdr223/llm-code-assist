@@ -324,10 +324,12 @@ Your task: {self.lang.format_prompt(TRANSPILE_IMPLEMENTATION_SOURCE_INSTRUCTIONS
 def test_spec_transpiler():
     source_folder = "tree_src"
     tree = SpecTree(source_folder)
-    planner = SpecPlanner(tree)
+    planner = SpecPlanner(tree) # as part of SpecPlanner, include per-function/per-class unit tests in TOML
+    # before / parallel to SpecPseudoCoder, have SpecUnitTestGenerator create python unit tests given planner
     pseudocoder = SpecPseudoCoder(planner)
     # lang = GO
     # lang = CPP
     lang = RUST
-    transpiler = GenericSpecTranspiler(pseudocoder, lang)
+    transpiler = GenericSpecTranspiler(pseudocoder, lang) # may need to augment this to generate tests in `lang`
+    # Either a deterministic script, or a generated script, to run the unit tests
     pass
